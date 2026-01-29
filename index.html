@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Canvas Visual Lab - HTML5 Experiments</title>
     
     <!-- React & ReactDOM -->
@@ -18,23 +18,22 @@
     <style>
         /* Custom Scrollbar for Webkit */
         .custom-scrollbar::-webkit-scrollbar {
-            width: 6px;
+            width: 4px;
         }
         .custom-scrollbar::-webkit-scrollbar-track {
-            background: rgba(30, 41, 59, 0.5); 
+            background: rgba(30, 41, 59, 0.3); 
         }
         .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: rgba(71, 85, 105, 0.8); 
+            background: rgba(71, 85, 105, 0.6); 
             border-radius: 3px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-            background: rgba(94, 114, 148, 1); 
         }
         
         body {
             margin: 0;
             overflow: hidden;
-            background-color: #0f172a; /* Slate 900 fallback */
+            background-color: #0f172a; 
+            /* Prevent pull-to-refresh on mobile */
+            overscroll-behavior: none;
         }
     </style>
 </head>
@@ -44,7 +43,7 @@
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
 
-        // --- ICON COMPONENTS (SVG Replacements for Lucide) ---
+        // --- ICON COMPONENTS ---
         const IconWind = ({ size = 24, className }) => (
             <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M17.7 7.7a2.5 2.5 0 1 1 1.8 4.3H2"/><path d="M9.6 4.6A2 2 0 1 1 11 8H2"/><path d="M12.6 19.4A2 2 0 1 0 14 16H2"/></svg>
         );
@@ -120,48 +119,25 @@
             }
         };
 
-        // --- EFFECT CLASSES ---
-
+        // --- EFFECT CLASSES (Identical to previous logic) ---
         class FlowFieldEffect {
             constructor(w, h) {
-                this.w = w;
-                this.h = h;
-                this.particles = [];
-                this.flowField = [];
-                this.cellSize = 20;
-                this.rows = Math.floor(h / this.cellSize);
-                this.cols = Math.floor(w / this.cellSize);
-                this.init();
+                this.w = w; this.h = h; this.particles = []; this.flowField = []; this.cellSize = 20;
+                this.rows = Math.floor(h / this.cellSize); this.cols = Math.floor(w / this.cellSize); this.init();
             }
-
             init() {
                 this.particles = [];
                 for (let i = 0; i < 1000; i++) {
                     this.particles.push({
-                        x: Math.random() * this.w,
-                        y: Math.random() * this.h,
-                        vx: 0,
-                        vy: 0,
-                        history: [],
-                        maxLength: Math.random() * 20 + 10,
+                        x: Math.random() * this.w, y: Math.random() * this.h, vx: 0, vy: 0,
+                        history: [], maxLength: Math.random() * 20 + 10,
                         color: `hsl(${Math.random() * 60 + 200}, 80%, 60%)`
                     });
                 }
             }
-
-            resize(w, h) {
-                this.w = w;
-                this.h = h;
-                this.rows = Math.floor(h / this.cellSize);
-                this.cols = Math.floor(w / this.cellSize);
-                this.init();
-            }
-
+            resize(w, h) { this.w = w; this.h = h; this.rows = Math.floor(h / this.cellSize); this.cols = Math.floor(w / this.cellSize); this.init(); }
             update(mouse, params) {
-                const zoom = params.zoom || 0.05;
-                const speed = params.speed || 1;
-
-                const time = Date.now() * 0.0005 * speed;
+                const zoom = params.zoom || 0.05; const speed = params.speed || 1; const time = Date.now() * 0.0005 * speed;
                 for (let y = 0; y < this.rows; y++) {
                     for (let x = 0; x < this.cols; x++) {
                         const index = x + y * this.cols;
@@ -169,580 +145,182 @@
                         this.flowField[index] = angle;
                     }
                 }
-
                 this.particles.forEach(p => {
-                    const x = Math.floor(p.x / this.cellSize);
-                    const y = Math.floor(p.y / this.cellSize);
-                    const index = x + y * this.cols;
-                    
-                    let angle = this.flowField[index] || 0;
-                    
-                    const dx = mouse.x - p.x;
-                    const dy = mouse.y - p.y;
-                    const dist = Math.sqrt(dx * dx + dy * dy);
-                    if (dist < 200) {
-                        angle += Math.PI; 
-                    }
-
-                    p.vx += Math.cos(angle) * 0.5;
-                    p.vy += Math.sin(angle) * 0.5;
-                    
-                    p.vx *= 0.9; 
-                    p.vy *= 0.9;
-
-                    p.x += p.vx;
-                    p.y += p.vy;
-
-                    if (p.x > this.w) p.x = 0;
-                    if (p.x < 0) p.x = this.w;
-                    if (p.y > this.h) p.y = 0;
-                    if (p.y < 0) p.y = this.h;
-
-                    p.history.push({ x: p.x, y: p.y });
-                    if (p.history.length > p.maxLength) p.history.shift();
+                    const x = Math.floor(p.x / this.cellSize); const y = Math.floor(p.y / this.cellSize);
+                    const index = x + y * this.cols; let angle = this.flowField[index] || 0;
+                    const dx = mouse.x - p.x; const dy = mouse.y - p.y;
+                    if (Math.sqrt(dx * dx + dy * dy) < 200) angle += Math.PI;
+                    p.vx += Math.cos(angle) * 0.5; p.vy += Math.sin(angle) * 0.5;
+                    p.vx *= 0.9; p.vy *= 0.9; p.x += p.vx; p.y += p.vy;
+                    if (p.x > this.w) p.x = 0; if (p.x < 0) p.x = this.w; if (p.y > this.h) p.y = 0; if (p.y < 0) p.y = this.h;
+                    p.history.push({ x: p.x, y: p.y }); if (p.history.length > p.maxLength) p.history.shift();
                 });
             }
-
             draw(ctx, params) {
-                const alpha = params.alpha || 0.1;
-                ctx.fillStyle = `rgba(10, 10, 15, ${alpha})`; 
-                ctx.fillRect(0, 0, this.w, this.h);
-                
+                const alpha = params.alpha || 0.1; ctx.fillStyle = `rgba(10, 10, 15, ${alpha})`; ctx.fillRect(0, 0, this.w, this.h);
                 this.particles.forEach(p => {
                     if (p.history.length < 2) return;
-                    ctx.beginPath();
-                    ctx.moveTo(p.history[0].x, p.history[0].y);
-                    for (let i = 1; i < p.history.length; i++) {
-                        ctx.lineTo(p.history[i].x, p.history[i].y);
-                    }
-                    ctx.strokeStyle = p.color;
-                    ctx.lineWidth = 1;
-                    ctx.stroke();
+                    ctx.beginPath(); ctx.moveTo(p.history[0].x, p.history[0].y);
+                    for (let i = 1; i < p.history.length; i++) ctx.lineTo(p.history[i].x, p.history[i].y);
+                    ctx.strokeStyle = p.color; ctx.lineWidth = 1; ctx.stroke();
                 });
             }
         }
 
         class ClothEffect {
-            constructor(w, h) {
-                this.w = w;
-                this.h = h;
-                this.points = [];
-                this.sticks = [];
-                this.spacing = 25;
-                this.init();
-            }
-
+            constructor(w, h) { this.w = w; this.h = h; this.points = []; this.sticks = []; this.spacing = 25; this.init(); }
             init() {
-                this.points = [];
-                this.sticks = [];
-                const cols = Math.floor(this.w / this.spacing) - 2;
-                const rows = Math.min(Math.floor(this.h / this.spacing) - 4, 20);
-                const startX = (this.w - cols * this.spacing) / 2;
-                const startY = 50;
-
+                this.points = []; this.sticks = [];
+                const cols = Math.floor(this.w / this.spacing) - 2; const rows = Math.min(Math.floor(this.h / this.spacing) - 4, 20);
+                const startX = (this.w - cols * this.spacing) / 2; const startY = 50;
                 for (let y = 0; y < rows; y++) {
                     for (let x = 0; x < cols; x++) {
-                        const p = {
-                            x: startX + x * this.spacing,
-                            y: startY + y * this.spacing,
-                            oldx: startX + x * this.spacing,
-                            oldy: startY + y * this.spacing,
-                            pinned: y === 0 
-                        };
+                        const p = { x: startX + x * this.spacing, y: startY + y * this.spacing, oldx: startX + x * this.spacing, oldy: startY + y * this.spacing, pinned: y === 0 };
                         this.points.push(p);
-                        
-                        if (x > 0) {
-                            this.sticks.push({ p0: this.points[this.points.length - 2], p1: p, length: this.spacing });
-                        }
-                        if (y > 0) {
-                            this.sticks.push({ p0: this.points[this.points.length - cols - 1], p1: p, length: this.spacing });
-                        }
+                        if (x > 0) this.sticks.push({ p0: this.points[this.points.length - 2], p1: p, length: this.spacing });
+                        if (y > 0) this.sticks.push({ p0: this.points[this.points.length - cols - 1], p1: p, length: this.spacing });
                     }
                 }
             }
-
-            resize(w, h) {
-                this.w = w;
-                this.h = h;
-                this.init();
-            }
-
+            resize(w, h) { this.w = w; this.h = h; this.init(); }
             update(mouse, params) {
-                const gravity = params.gravity !== undefined ? params.gravity : 0.5;
-                const friction = params.friction || 0.99;
-                const tearThreshold = (params.tension || 4) * this.spacing;
-
+                const gravity = params.gravity !== undefined ? params.gravity : 0.5; const friction = params.friction || 0.99; const tearThreshold = (params.tension || 4) * this.spacing;
                 for (let i = 0; i < this.points.length; i++) {
                     const p = this.points[i];
                     if (!p.pinned) {
-                        const vx = (p.x - p.oldx) * friction;
-                        const vy = (p.y - p.oldy) * friction;
-                        
-                        p.oldx = p.x;
-                        p.oldy = p.y;
-                        p.x += vx;
-                        p.y += vy;
-                        p.y += gravity;
+                        const vx = (p.x - p.oldx) * friction; const vy = (p.y - p.oldy) * friction;
+                        p.oldx = p.x; p.oldy = p.y; p.x += vx; p.y += vy; p.y += gravity;
                     }
-
                     if (mouse.isDown) {
-                        const dx = p.x - mouse.x;
-                        const dy = p.y - mouse.y;
-                        const dist = Math.sqrt(dx * dx + dy * dy);
-                        if (dist < 40 && mouse.isDown) {
-                            p.oldx = p.x - (mouse.x - mouse.px) * 0.8; 
-                            p.oldy = p.y - (mouse.y - mouse.py) * 0.8;
-                        }
+                        const dx = p.x - mouse.x; const dy = p.y - mouse.y;
+                        if (Math.sqrt(dx * dx + dy * dy) < 40) { p.oldx = p.x - (mouse.x - mouse.px) * 0.8; p.oldy = p.y - (mouse.y - mouse.py) * 0.8; }
                     }
                 }
-
                 for (let k = 0; k < 3; k++) {
                     for (let i = this.sticks.length - 1; i >= 0; i--) {
-                        const s = this.sticks[i];
-                        const dx = s.p1.x - s.p0.x;
-                        const dy = s.p1.y - s.p0.y;
-                        const dist = Math.sqrt(dx * dx + dy * dy);
-                        const diff = s.length - dist;
-                        
-                        if (dist > tearThreshold) {
-                            this.sticks.splice(i, 1);
-                            continue;
-                        }
-
-                        const percent = diff / dist / 2;
-                        const offsetX = dx * percent;
-                        const offsetY = dy * percent;
-
-                        if (!s.p0.pinned) {
-                            s.p0.x -= offsetX;
-                            s.p0.y -= offsetY;
-                        }
-                        if (!s.p1.pinned) {
-                            s.p1.x += offsetX;
-                            s.p1.y += offsetY;
-                        }
+                        const s = this.sticks[i]; const dx = s.p1.x - s.p0.x; const dy = s.p1.y - s.p0.y; const dist = Math.sqrt(dx * dx + dy * dy); const diff = s.length - dist;
+                        if (dist > tearThreshold) { this.sticks.splice(i, 1); continue; }
+                        const percent = diff / dist / 2; const offsetX = dx * percent; const offsetY = dy * percent;
+                        if (!s.p0.pinned) { s.p0.x -= offsetX; s.p0.y -= offsetY; } if (!s.p1.pinned) { s.p1.x += offsetX; s.p1.y += offsetY; }
                     }
                 }
             }
-
             draw(ctx) {
-                ctx.clearRect(0, 0, this.w, this.h);
-                
-                ctx.beginPath();
-                for (let i = 0; i < this.sticks.length; i++) {
-                    const s = this.sticks[i];
-                    ctx.moveTo(s.p0.x, s.p0.y);
-                    ctx.lineTo(s.p1.x, s.p1.y);
-                }
-                ctx.strokeStyle = '#00dcb4';
-                ctx.lineWidth = 1;
-                ctx.stroke();
-
-                ctx.fillStyle = '#fff';
-                for (let i = 0; i < this.points.length; i++) {
-                    const p = this.points[i];
-                    if (i % 5 === 0) { 
-                        ctx.fillRect(p.x - 1, p.y - 1, 2, 2);
-                    }
-                }
-                
-                ctx.fillStyle = "rgba(255,255,255,0.7)";
-                ctx.fillText("用滑鼠拖曳布料 (Drag the cloth)", this.w/2 - 80, 40);
+                ctx.clearRect(0, 0, this.w, this.h); ctx.beginPath();
+                for (let i = 0; i < this.sticks.length; i++) { const s = this.sticks[i]; ctx.moveTo(s.p0.x, s.p0.y); ctx.lineTo(s.p1.x, s.p1.y); }
+                ctx.strokeStyle = '#00dcb4'; ctx.lineWidth = 1; ctx.stroke();
+                ctx.fillStyle = '#fff'; for (let i = 0; i < this.points.length; i++) { if (i % 5 === 0) ctx.fillRect(this.points[i].x - 1, this.points[i].y - 1, 2, 2); }
             }
         }
 
         class MetaballsEffect {
-            constructor(w, h) {
-                this.w = w;
-                this.h = h;
-                this.balls = [];
-                this.currentCount = 15;
-                this.init();
-            }
-
+            constructor(w, h) { this.w = w; this.h = h; this.balls = []; this.currentCount = 15; this.init(); }
             init() {
                 this.balls = [];
-                for(let i=0; i<30; i++) {
-                    this.balls.push({
-                        x: Math.random() * this.w,
-                        y: Math.random() * this.h,
-                        vx: (Math.random() - 0.5) * 4,
-                        vy: (Math.random() - 0.5) * 4,
-                        r: Math.random() * 30 + 40,
-                        color: `hsl(${Math.random() * 60}, 100%, 60%)`,
-                        active: i < this.currentCount
-                    });
-                }
+                for(let i=0; i<30; i++) this.balls.push({ x: Math.random()*this.w, y: Math.random()*this.h, vx: (Math.random()-0.5)*4, vy: (Math.random()-0.5)*4, r: Math.random()*30+40, color: `hsl(${Math.random()*60}, 100%, 60%)`, active: i < this.currentCount });
             }
-
-            resize(w, h) {
-                this.w = w;
-                this.h = h;
-                this.init();
-            }
-
+            resize(w, h) { this.w = w; this.h = h; this.init(); }
             update(mouse, params) {
-                const speedMult = params.speed !== undefined ? (params.speed / 4) : 1;
-                const count = params.count || 15;
-
+                const speedMult = params.speed !== undefined ? (params.speed / 4) : 1; const count = params.count || 15;
                 this.balls.forEach((b, index) => {
-                    b.active = index < count;
-                    if (!b.active) return;
-
-                    b.x += b.vx * speedMult;
-                    b.y += b.vy * speedMult;
-
-                    if(b.x < b.r || b.x > this.w - b.r) b.vx *= -1;
-                    if(b.y < b.r || b.y > this.h - b.r) b.vy *= -1;
-
-                    const dx = mouse.x - b.x;
-                    const dy = mouse.y - b.y;
-                    if (Math.sqrt(dx*dx + dy*dy) < 100) {
-                        b.vx -= dx * 0.005;
-                        b.vy -= dy * 0.005;
-                    }
+                    b.active = index < count; if (!b.active) return;
+                    b.x += b.vx * speedMult; b.y += b.vy * speedMult;
+                    if(b.x < b.r || b.x > this.w - b.r) b.vx *= -1; if(b.y < b.r || b.y > this.h - b.r) b.vy *= -1;
+                    const dx = mouse.x - b.x; const dy = mouse.y - b.y;
+                    if (Math.sqrt(dx*dx + dy*dy) < 100) { b.vx -= dx * 0.005; b.vy -= dy * 0.005; }
                 });
             }
-
             draw(ctx) {
-                ctx.clearRect(0,0, this.w, this.h);
-                ctx.fillStyle = '#fff'; 
-                this.balls.forEach(b => {
-                    if (!b.active) return;
-                    ctx.beginPath();
-                    ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
-                    ctx.fillStyle = b.color;
-                    ctx.fill();
-                });
-                
-                ctx.beginPath();
-                ctx.arc(mouse.current.x, mouse.current.y, 60, 0, Math.PI*2);
-                ctx.fillStyle = '#ff0066';
-                ctx.fill();
+                ctx.clearRect(0,0, this.w, this.h); ctx.fillStyle = '#fff';
+                this.balls.forEach(b => { if (!b.active) return; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2); ctx.fillStyle = b.color; ctx.fill(); });
+                ctx.beginPath(); ctx.arc(mouse.current.x, mouse.current.y, 60, 0, Math.PI*2); ctx.fillStyle = '#ff0066'; ctx.fill();
             }
         }
 
         class DispersionEffect {
-            constructor(w, h) {
-                this.w = w;
-                this.h = h;
-                this.particles = [];
-                this.baseX = w / 2;
-                this.baseY = h / 2;
-                this.init();
-            }
-
+            constructor(w, h) { this.w = w; this.h = h; this.particles = []; this.init(); }
             init() {
-                this.particles = [];
-                const gap = 12;
-                const rows = 20;
-                const cols = 40;
-                
-                for(let y=0; y<rows; y++) {
-                    for(let x=0; x<cols; x++) {
-                        this.particles.push({
-                            x: (this.w/2 - (cols*gap)/2) + x * gap,
-                            y: (this.h/2 - (rows*gap)/2) + y * gap,
-                            originX: (this.w/2 - (cols*gap)/2) + x * gap,
-                            originY: (this.h/2 - (rows*gap)/2) + y * gap,
-                            vx: 0,
-                            vy: 0,
-                            size: 6,
-                            color: `hsl(${x * 5 + 180}, 50%, 60%)`
-                        });
-                    }
-                }
+                this.particles = []; const gap = 12; const rows = 20; const cols = 40;
+                for(let y=0; y<rows; y++) { for(let x=0; x<cols; x++) {
+                    this.particles.push({ x: (this.w/2 - (cols*gap)/2) + x * gap, y: (this.h/2 - (rows*gap)/2) + y * gap, originX: (this.w/2 - (cols*gap)/2) + x * gap, originY: (this.h/2 - (rows*gap)/2) + y * gap, vx: 0, vy: 0, size: 6, color: `hsl(${x * 5 + 180}, 50%, 60%)` });
+                }}
             }
-
-            resize(w, h) {
-                this.w = w;
-                this.h = h;
-                this.init();
-            }
-
+            resize(w, h) { this.w = w; this.h = h; this.init(); }
             update(mouse, params) {
-                const forceDistance = params.force || 150;
-                const returnSpeed = params.returnSpeed || 0.1;
-                const friction = params.friction || 0.9;
-
+                const forceDistance = params.force || 150; const returnSpeed = params.returnSpeed || 0.1; const friction = params.friction || 0.9;
                 this.particles.forEach(p => {
-                    const dx = mouse.x - p.x;
-                    const dy = mouse.y - p.y;
-                    const dist = Math.sqrt(dx*dx + dy*dy);
-                    
-                    if (dist < forceDistance) {
-                        const angle = Math.atan2(dy, dx);
-                        const f = (forceDistance - dist) / forceDistance; 
-                        const fx = Math.cos(angle) * f * 50;
-                        const fy = Math.sin(angle) * f * 50;
-                        p.vx -= fx;
-                        p.vy -= fy;
-                    }
-
-                    const dxOrigin = p.originX - p.x;
-                    const dyOrigin = p.originY - p.y;
-                    
-                    p.vx += dxOrigin * returnSpeed * 0.5;
-                    p.vy += dyOrigin * returnSpeed * 0.5;
-
-                    p.vx *= friction;
-                    p.vy *= friction;
-
-                    p.x += p.vx;
-                    p.y += p.vy;
+                    const dx = mouse.x - p.x; const dy = mouse.y - p.y; const dist = Math.sqrt(dx*dx + dy*dy);
+                    if (dist < forceDistance) { const angle = Math.atan2(dy, dx); const f = (forceDistance - dist) / forceDistance; p.vx -= Math.cos(angle) * f * 50; p.vy -= Math.sin(angle) * f * 50; }
+                    p.vx += (p.originX - p.x) * returnSpeed * 0.5; p.vy += (p.originY - p.y) * returnSpeed * 0.5;
+                    p.vx *= friction; p.vy *= friction; p.x += p.vx; p.y += p.vy;
                 });
             }
-
             draw(ctx) {
-                ctx.clearRect(0,0,this.w, this.h);
-                this.particles.forEach(p => {
-                    ctx.fillStyle = p.color;
-                    ctx.fillRect(p.x, p.y, p.size, p.size);
-                });
-                
-                ctx.fillStyle = "rgba(255,255,255,0.5)";
-                ctx.font = "20px monospace";
-                ctx.textAlign = "center";
-                ctx.fillText("MOUSE OVER TO DISPERSE", this.w/2, this.h/2 + 150);
+                ctx.clearRect(0,0,this.w, this.h); this.particles.forEach(p => { ctx.fillStyle = p.color; ctx.fillRect(p.x, p.y, p.size, p.size); });
+                ctx.fillStyle = "rgba(255,255,255,0.5)"; ctx.font = "20px monospace"; ctx.textAlign = "center"; ctx.fillText("MOUSE OVER TO DISPERSE", this.w/2, this.h/2 + 150);
             }
         }
 
         class MatrixEffect {
-            constructor(w, h) {
-                this.w = w;
-                this.h = h;
-                this.columns = [];
-                this.fontSize = 16;
-                this.init();
-            }
-            
-            init() {
-                const cols = Math.floor(this.w / this.fontSize);
-                this.columns = Array(cols).fill(1);
-            }
-            
-            resize(w, h) {
-                this.w = w;
-                this.h = h;
-                this.init();
-            }
-
+            constructor(w, h) { this.w = w; this.h = h; this.columns = []; this.fontSize = 16; this.init(); }
+            init() { const cols = Math.floor(this.w / this.fontSize); this.columns = Array(cols).fill(1); }
+            resize(w, h) { this.w = w; this.h = h; this.init(); }
             update() {}
-
             draw(ctx, params) {
-                const speed = params.speed || 1;
-                const density = params.density || 0.975;
-
-                ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
-                ctx.fillRect(0, 0, this.w, this.h);
-
-                ctx.fillStyle = '#0F0';
-                ctx.font = this.fontSize + 'px monospace';
-
+                const speed = params.speed || 1; const density = params.density || 0.975;
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.05)'; ctx.fillRect(0, 0, this.w, this.h);
+                ctx.fillStyle = '#0F0'; ctx.font = this.fontSize + 'px monospace';
                 for (let i = 0; i < this.columns.length; i++) {
-                    const text = String.fromCharCode(0x30A0 + Math.random() * 96); 
-                    ctx.fillText(text, i * this.fontSize, this.columns[i] * this.fontSize);
-
-                    if (this.columns[i] * this.fontSize > this.h && Math.random() > density) {
-                        this.columns[i] = 0;
-                    }
+                    const text = String.fromCharCode(0x30A0 + Math.random() * 96); ctx.fillText(text, i * this.fontSize, this.columns[i] * this.fontSize);
+                    if (this.columns[i] * this.fontSize > this.h && Math.random() > density) this.columns[i] = 0;
                     this.columns[i] += speed;
                 }
             }
         }
 
         class FireworksEffect {
-            constructor(w, h) {
-                this.w = w;
-                this.h = h;
-                this.rockets = [];
-                this.shards = [];
-                this.init();
-            }
-
-            init() {
-                this.rockets = [];
-                this.shards = [];
-            }
-            
-            resize(w, h) {
-                this.w = w;
-                this.h = h;
-            }
-
+            constructor(w, h) { this.w = w; this.h = h; this.rockets = []; this.shards = []; this.init(); }
+            init() { this.rockets = []; this.shards = []; }
+            resize(w, h) { this.w = w; this.h = h; }
             update(mouse, params) {
-                const gravity = params.gravity || 0.2;
-                const wind = params.wind || 0;
-                const amount = params.amount || 0.03;
-
-                // Auto launch
-                if (Math.random() < amount) {
-                    this.rockets.push({
-                        x: Math.random() * this.w,
-                        y: this.h,
-                        vx: (Math.random() - 0.5) * 4 + wind,
-                        vy: -(Math.random() * 10 + 12),
-                        color: `hsl(${Math.random() * 360}, 100%, 50%)`
-                    });
-                }
-
-                if (mouse.click) {
-                    this.rockets.push({
-                        x: mouse.x,
-                        y: this.h,
-                        vx: (Math.random() - 0.5) * 4 + wind,
-                        vy: -(Math.random() * 10 + 15),
-                        color: `hsl(${Math.random() * 360}, 100%, 70%)`
-                    });
-                    mouse.click = false; 
-                }
-
-                // Update Rockets
-                for(let i = this.rockets.length - 1; i >= 0; i--) {
-                    const r = this.rockets[i];
-                    r.vy += gravity; 
-                    r.vx += wind * 0.01;
-                    r.x += r.vx;
-                    r.y += r.vy;
-                    
-                    if (r.vy >= -1) {
-                        this.explode(r.x, r.y, r.color);
-                        this.rockets.splice(i, 1);
-                    }
-                }
-
-                // Update Shards
-                for(let i = this.shards.length - 1; i >= 0; i--) {
-                    const s = this.shards[i];
-                    s.vy += 0.1;
-                    s.vx *= 0.96; 
-                    s.vy *= 0.96;
-                    s.x += s.vx;
-                    s.y += s.vy;
-                    s.alpha -= 0.015;
-                    
-                    if (s.alpha <= 0) {
-                        this.shards.splice(i, 1);
-                    }
-                }
+                const gravity = params.gravity || 0.2; const wind = params.wind || 0; const amount = params.amount || 0.03;
+                if (Math.random() < amount) this.rockets.push({ x: Math.random() * this.w, y: this.h, vx: (Math.random() - 0.5) * 4 + wind, vy: -(Math.random() * 10 + 12), color: `hsl(${Math.random() * 360}, 100%, 50%)` });
+                if (mouse.click) { this.rockets.push({ x: mouse.x, y: this.h, vx: (Math.random() - 0.5) * 4 + wind, vy: -(Math.random() * 10 + 15), color: `hsl(${Math.random() * 360}, 100%, 70%)` }); mouse.click = false; }
+                for(let i = this.rockets.length - 1; i >= 0; i--) { const r = this.rockets[i]; r.vy += gravity; r.vx += wind * 0.01; r.x += r.vx; r.y += r.vy; if (r.vy >= -1) { this.explode(r.x, r.y, r.color); this.rockets.splice(i, 1); } }
+                for(let i = this.shards.length - 1; i >= 0; i--) { const s = this.shards[i]; s.vy += 0.1; s.vx *= 0.96; s.vy *= 0.96; s.x += s.vx; s.y += s.vy; s.alpha -= 0.015; if (s.alpha <= 0) this.shards.splice(i, 1); }
             }
-
-            explode(x, y, color) {
-                const count = 50;
-                for(let i=0; i<count; i++) {
-                    const angle = Math.random() * Math.PI * 2;
-                    const speed = Math.random() * 5 + 1;
-                    this.shards.push({
-                        x: x, 
-                        y: y,
-                        vx: Math.cos(angle) * speed,
-                        vy: Math.sin(angle) * speed,
-                        color: color,
-                        alpha: 1
-                    });
-                }
-            }
-
+            explode(x, y, color) { for(let i=0; i<50; i++) { const angle = Math.random() * Math.PI * 2; const speed = Math.random() * 5 + 1; this.shards.push({ x: x, y: y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, color: color, alpha: 1 }); } }
             draw(ctx) {
-                ctx.fillStyle = 'rgba(0, 0, 0, 0.2)'; 
-                ctx.fillRect(0, 0, this.w, this.h);
-                
-                ctx.globalCompositeOperation = 'lighter';
-                
-                this.rockets.forEach(r => {
-                    ctx.beginPath();
-                    ctx.arc(r.x, r.y, 3, 0, Math.PI*2);
-                    ctx.fillStyle = r.color;
-                    ctx.fill();
-                });
-
-                this.shards.forEach(s => {
-                    ctx.beginPath();
-                    ctx.arc(s.x, s.y, 2, 0, Math.PI*2);
-                    ctx.fillStyle = s.color; 
-                    ctx.globalAlpha = s.alpha;
-                    ctx.fill();
-                });
-                
-                ctx.globalAlpha = 1.0;
-                ctx.globalCompositeOperation = 'source-over';
-                
-                ctx.fillStyle = "rgba(255,255,255,0.7)";
-                ctx.textAlign = "center";
-                ctx.fillText("CLICK TO LAUNCH FIREWORKS", this.w/2, 50);
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.2)'; ctx.fillRect(0, 0, this.w, this.h); ctx.globalCompositeOperation = 'lighter';
+                this.rockets.forEach(r => { ctx.beginPath(); ctx.arc(r.x, r.y, 3, 0, Math.PI*2); ctx.fillStyle = r.color; ctx.fill(); });
+                this.shards.forEach(s => { ctx.beginPath(); ctx.arc(s.x, s.y, 2, 0, Math.PI*2); ctx.fillStyle = s.color; ctx.globalAlpha = s.alpha; ctx.fill(); });
+                ctx.globalAlpha = 1.0; ctx.globalCompositeOperation = 'source-over';
+                ctx.fillStyle = "rgba(255,255,255,0.7)"; ctx.textAlign = "center"; ctx.fillText("CLICK TO LAUNCH FIREWORKS", this.w/2, 50);
             }
         }
 
         class FractalTreeEffect {
-            constructor(w, h) {
-                this.w = w;
-                this.h = h;
-                this.frameCount = 0;
-                this.maxDepth = 10;
-                this.init();
-            }
-            
+            constructor(w, h) { this.w = w; this.h = h; this.frameCount = 0; this.maxDepth = 10; this.init(); }
             init() {}
             resize(w, h) { this.w = w; this.h = h; }
-
-            update(mouse) {
-                this.mouse = mouse;
-                this.frameCount++;
-            }
-
+            update(mouse) { this.mouse = mouse; this.frameCount++; }
             drawBranch(ctx, startX, startY, length, angle, depth, branchWidth, params) {
-                ctx.beginPath();
-                ctx.save();
-                
-                ctx.translate(startX, startY);
-                ctx.rotate(angle * Math.PI / 180);
-                
-                ctx.moveTo(0, 0);
-                ctx.lineTo(0, -length);
-                
-                const shift = params.colorShift || 5;
-                ctx.strokeStyle = depth < 2 
-                    ? `hsl(120, 60%, ${50 + depth * 5}%)` 
-                    : `hsl(${30 + depth * shift}, 40%, ${80 - depth * 5}%)`;
-                    
-                ctx.lineWidth = branchWidth;
-                ctx.lineCap = 'round';
-                ctx.stroke();
-
+                ctx.beginPath(); ctx.save(); ctx.translate(startX, startY); ctx.rotate(angle * Math.PI / 180); ctx.moveTo(0, 0); ctx.lineTo(0, -length);
+                const shift = params.colorShift || 5; ctx.strokeStyle = depth < 2 ? `hsl(120, 60%, ${50 + depth * 5}%)` : `hsl(${30 + depth * shift}, 40%, ${80 - depth * 5}%)`;
+                ctx.lineWidth = branchWidth; ctx.lineCap = 'round'; ctx.stroke();
                 if (depth < this.maxDepth) {
                     ctx.translate(0, -length);
-                    
-                    const mouseFactorX = (this.mouse.x / this.w);
-                    const angleVar = 15 + mouseFactorX * 30;
-                    const sway = Math.sin(this.frameCount * 0.02 + depth) * 2;
-                    const newLength = length * 0.75;
-                    const newWidth = branchWidth * 0.7;
-
-                    this.drawBranch(ctx, 0, 0, newLength, angleVar + sway, depth + 1, newWidth, params);
-                    this.drawBranch(ctx, 0, 0, newLength, -angleVar + sway, depth + 1, newWidth, params);
-                    
-                    if (depth > 6) {
-                        this.drawBranch(ctx, 0, 0, newLength * 0.8, sway, depth + 1, newWidth, params);
-                    }
+                    const mouseFactorX = (this.mouse.x / this.w); const angleVar = 15 + mouseFactorX * 30; const sway = Math.sin(this.frameCount * 0.02 + depth) * 2;
+                    this.drawBranch(ctx, 0, 0, length * 0.75, angleVar + sway, depth + 1, branchWidth * 0.7, params);
+                    this.drawBranch(ctx, 0, 0, length * 0.75, -angleVar + sway, depth + 1, branchWidth * 0.7, params);
+                    if (depth > 6) this.drawBranch(ctx, 0, 0, length * 0.75 * 0.8, sway, depth + 1, branchWidth * 0.7, params);
                 }
-                
                 ctx.restore();
             }
-
             draw(ctx, params) {
-                ctx.clearRect(0, 0, this.w, this.h);
-                
-                const baseLength = params.length || 150;
-                const baseWidth = params.branchWidth || 12;
-                
-                const trunkHeight = Math.min(this.h * 0.25, baseLength);
-                
+                ctx.clearRect(0, 0, this.w, this.h); const baseLength = params.length || 150; const baseWidth = params.branchWidth || 12; const trunkHeight = Math.min(this.h * 0.25, baseLength);
                 this.drawBranch(ctx, this.w / 2, this.h, trunkHeight, 0, 0, baseWidth, params);
-                
-                ctx.fillStyle = "rgba(255,255,255,0.7)";
-                ctx.textAlign = "center";
-                ctx.font = "16px monospace";
-                ctx.fillText("MOVE MOUSE LEFT/RIGHT TO CHANGE GROWTH ANGLE", this.w/2, 50);
+                ctx.fillStyle = "rgba(255,255,255,0.7)"; ctx.textAlign = "center"; ctx.font = "16px monospace"; ctx.fillText("MOVE MOUSE LEFT/RIGHT TO CHANGE GROWTH ANGLE", this.w/2, 50);
             }
         }
 
@@ -770,34 +348,46 @@
             const mouse = useRef({ x: 0, y: 0, isDown: false, px: 0, py: 0, click: false });
             const paramsRef = useRef(params);
 
-            // Initialize params when effect changes
+            // Initialize params
             useEffect(() => {
                 const initialParams = {};
                 const config = DEFAULT_PARAMS[activeEffect];
                 if (config) {
-                    Object.keys(config).forEach(key => {
-                        initialParams[key] = config[key].value;
-                    });
+                    Object.keys(config).forEach(key => { initialParams[key] = config[key].value; });
                     setParams(initialParams);
                 }
             }, [activeEffect]);
 
             // Sync params ref
+            useEffect(() => { paramsRef.current = params; }, [params]);
+
+            // --- PAGE VISIBILITY & AUDIO HANDLING ---
             useEffect(() => {
-                paramsRef.current = params;
-            }, [params]);
+                const handleVisibilityChange = () => {
+                    if (document.hidden) {
+                        // Pause audio when leaving tab/app
+                        if (bgmRef.current) bgmRef.current.pause();
+                    } else {
+                        // Resume audio only if app started and not muted
+                        if (hasStarted && !isMuted && bgmRef.current) {
+                            bgmRef.current.play().catch(e => console.log("Resume failed", e));
+                        }
+                    }
+                };
+
+                document.addEventListener("visibilitychange", handleVisibilityChange);
+                return () => {
+                    document.removeEventListener("visibilitychange", handleVisibilityChange);
+                };
+            }, [hasStarted, isMuted]);
 
             const handleParamChange = (key, value) => {
-                setParams(prev => ({
-                    ...prev,
-                    [key]: value
-                }));
+                setParams(prev => ({ ...prev, [key]: value }));
             };
 
             const handleStartApp = () => {
                 if (sfxRef.current) {
-                    sfxRef.current.volume = 0.5;
-                    sfxRef.current.currentTime = 0;
+                    sfxRef.current.volume = 0.5; sfxRef.current.currentTime = 0;
                     sfxRef.current.play().catch(e => console.log("SFX play failed", e));
                 }
                 if (bgmRef.current) {
@@ -814,6 +404,7 @@
                 }
             };
 
+            // Main Loop & Events
             useEffect(() => {
                 const canvas = canvasRef.current;
                 const ctx = canvas.getContext('2d');
@@ -821,8 +412,7 @@
                 
                 let w = container.clientWidth;
                 let h = container.clientHeight;
-                canvas.width = w;
-                canvas.height = h;
+                canvas.width = w; canvas.height = h;
 
                 const loadEffect = () => {
                     switch(activeEffect) {
@@ -839,68 +429,62 @@
                 loadEffect();
 
                 const handleResize = () => {
-                    w = container.clientWidth;
-                    h = container.clientHeight;
-                    canvas.width = w;
-                    canvas.height = h;
+                    w = container.clientWidth; h = container.clientHeight;
+                    canvas.width = w; canvas.height = h;
                     if (effectInstance.current) effectInstance.current.resize(w, h);
                 };
 
-                const handleMouseMove = (e) => {
+                const getMousePos = (e) => {
                     const rect = canvas.getBoundingClientRect();
-                    mouse.current.px = mouse.current.x; 
-                    mouse.current.py = mouse.current.y;
-                    mouse.current.x = e.clientX - rect.left;
-                    mouse.current.y = e.clientY - rect.top;
+                    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
                 };
-                
-                const handleMouseDown = () => { mouse.current.isDown = true; mouse.current.click = true; };
+
+                const handleMouseMove = (e) => {
+                    const pos = getMousePos(e);
+                    mouse.current.px = mouse.current.x; mouse.current.py = mouse.current.y;
+                    mouse.current.x = pos.x; mouse.current.y = pos.y;
+                };
+                const handleMouseDown = (e) => { mouse.current.isDown = true; mouse.current.click = true; handleMouseMove(e); };
                 const handleMouseUp = () => { mouse.current.isDown = false; };
                 
                 const handleTouchMove = (e) => {
+                    e.preventDefault(); // Prevent scrolling
                     const rect = canvas.getBoundingClientRect();
                     const touch = e.touches[0];
-                    mouse.current.px = mouse.current.x; 
-                    mouse.current.py = mouse.current.y;
-                    mouse.current.x = touch.clientX - rect.left;
-                    mouse.current.y = touch.clientY - rect.top;
+                    mouse.current.px = mouse.current.x; mouse.current.py = mouse.current.y;
+                    mouse.current.x = touch.clientX - rect.left; mouse.current.y = touch.clientY - rect.top;
                     mouse.current.isDown = true; 
                 };
+                const handleTouchStart = (e) => {
+                    e.preventDefault();
+                    mouse.current.click = true;
+                    handleTouchMove(e);
+                }
 
                 window.addEventListener('resize', handleResize);
                 canvas.addEventListener('mousemove', handleMouseMove);
                 canvas.addEventListener('mousedown', handleMouseDown);
                 canvas.addEventListener('mouseup', handleMouseUp);
                 canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
-                canvas.addEventListener('touchstart', handleMouseDown); 
+                canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
                 
                 let frameCount = 0;
                 let lastTime = performance.now();
 
                 const animate = (time) => {
                     animationRef.current = requestAnimationFrame(animate);
-
                     if (!effectInstance.current) return;
-
                     const fpsInterval = 1000 / targetFps;
                     const elapsed = time - lastDrawTimeRef.current;
-
                     if (elapsed > fpsInterval) {
                         lastDrawTimeRef.current = time - (elapsed % fpsInterval);
-
                         frameCount++;
-                        if (time - lastTime >= 1000) {
-                            setStats({ fps: frameCount });
-                            frameCount = 0;
-                            lastTime = time;
-                        }
-                        
+                        if (time - lastTime >= 1000) { setStats({ fps: frameCount }); frameCount = 0; lastTime = time; }
                         effectInstance.current.update(mouse.current, paramsRef.current);
                         effectInstance.current.draw(ctx, paramsRef.current);
                         mouse.current.click = false; 
                     }
                 };
-
                 animationRef.current = requestAnimationFrame(animate);
 
                 return () => {
@@ -910,117 +494,92 @@
                     canvas.removeEventListener('mousedown', handleMouseDown);
                     canvas.removeEventListener('mouseup', handleMouseUp);
                     canvas.removeEventListener('touchmove', handleTouchMove);
-                    canvas.removeEventListener('touchstart', handleMouseDown);
+                    canvas.removeEventListener('touchstart', handleTouchStart);
                 };
             }, [activeEffect, targetFps]);
 
-            const canvasStyle = activeEffect === 'metaballs' 
-                ? { filter: 'blur(10px) contrast(30)' } 
-                : {};
-
+            const canvasStyle = activeEffect === 'metaballs' ? { filter: 'blur(10px) contrast(30)' } : {};
             const bgStyle = (activeEffect === 'metaballs' || activeEffect === 'fireworks') ? 'bg-black' : 'bg-slate-900';
 
             return (
-                <div className={`w-full h-screen relative overflow-hidden ${bgStyle} font-sans text-white`}>
+                <div className={`w-full h-[100dvh] relative overflow-hidden ${bgStyle} font-sans text-white`}>
                     
-                    <audio 
-                        ref={bgmRef} 
-                        loop 
-                        src="https://cdn.pixabay.com/download/audio/2022/03/21/audio_0c4867c016.mp3?filename=future-chill_awareness-99187.mp3" 
-                    />
-                    <audio 
-                        ref={sfxRef} 
-                        src="https://cdn.pixabay.com/download/audio/2025/06/14/audio_3045825a0d.mp3?filename=sample_confirm_success02_kofi_by_miraclei-360154.mp3" 
-                    />
+                    <audio ref={bgmRef} loop src="https://cdn.pixabay.com/download/audio/2022/03/21/audio_0c4867c016.mp3?filename=future-chill_awareness-99187.mp3" />
+                    <audio ref={sfxRef} src="https://cdn.pixabay.com/download/audio/2025/06/14/audio_3045825a0d.mp3?filename=sample_confirm_success02_kofi_by_miraclei-360154.mp3" />
 
                     <div ref={containerRef} className="absolute inset-0 bg-transparent z-0">
-                        <canvas 
-                            ref={canvasRef} 
-                            style={canvasStyle}
-                            className="block w-full h-full touch-none"
-                        />
+                        <canvas ref={canvasRef} style={canvasStyle} className="block w-full h-full touch-none" />
                     </div>
 
                     {!hasStarted && (
-                        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm transition-opacity duration-500">
-                            <div className="text-center space-y-8 animate-in fade-in zoom-in duration-700">
+                        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm transition-opacity duration-500 p-4">
+                            <div className="text-center space-y-6 md:space-y-8 animate-in fade-in zoom-in duration-700 w-full max-w-lg">
                                 <div className="space-y-2">
-                                    <h1 className="text-5xl md:text-7xl font-black bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent drop-shadow-lg tracking-tight">
+                                    <h1 className="text-4xl md:text-7xl font-black bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent drop-shadow-lg tracking-tight">
                                     CANVAS VISUAL LAB
                                     </h1>
-                                    <p className="text-slate-300 text-lg md:text-xl font-light tracking-widest uppercase">
+                                    <p className="text-slate-300 text-sm md:text-xl font-light tracking-widest uppercase">
                                     Interactive Digital Art Experiments
                                     </p>
                                 </div>
-                                
-                                <button 
-                                onClick={handleStartApp}
-                                className="group relative px-8 py-4 bg-transparent overflow-hidden rounded-full border border-white/30 hover:border-white/80 transition-all duration-300 hover:scale-105 active:scale-95"
-                                >
-                                <div className="absolute inset-0 w-0 bg-white transition-all duration-[250ms] ease-out group-hover:w-full opacity-10"></div>
-                                <div className="flex items-center space-x-3 text-white">
-                                    <IconPlay className="w-6 h-6 fill-white" />
-                                    <span className="text-xl font-bold tracking-wider">ENTER LAB</span>
-                                </div>
+                                <button onClick={handleStartApp} className="group relative px-6 py-3 md:px-8 md:py-4 bg-transparent overflow-hidden rounded-full border border-white/30 hover:border-white/80 transition-all duration-300 hover:scale-105 active:scale-95">
+                                    <div className="absolute inset-0 w-0 bg-white transition-all duration-[250ms] ease-out group-hover:w-full opacity-10"></div>
+                                    <div className="flex items-center space-x-3 text-white justify-center">
+                                        <IconPlay className="w-5 h-5 md:w-6 md:h-6 fill-white" />
+                                        <span className="text-lg md:text-xl font-bold tracking-wider">ENTER LAB</span>
+                                    </div>
                                 </button>
-                                
-                                <div className="text-xs text-slate-500 pt-4">
-                                    建議開啟聲音以獲得最佳體驗
-                                </div>
+                                <div className="text-xs text-slate-500 pt-2">建議開啟聲音以獲得最佳體驗</div>
                             </div>
                         </div>
                     )}
 
-                    <div className={`absolute top-0 left-0 h-full w-72 bg-slate-900/95 backdrop-blur-md border-r border-slate-700 z-10 transition-transform duration-300 transform ${showUI && hasStarted ? 'translate-x-0' : '-translate-x-full'} flex flex-col`}>
+                    {/* Sidebar Container */}
+                    <div className={`absolute top-0 left-0 h-[100dvh] w-full sm:w-80 bg-slate-900/95 backdrop-blur-md border-r border-slate-700 z-20 transition-transform duration-300 transform ${showUI && hasStarted ? 'translate-x-0' : '-translate-x-full'} flex flex-col shadow-2xl`}>
                         
-                        <div className="p-6 shrink-0">
-                            <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
-                                Visual Lab
-                            </h1>
-                            <p className="text-xs text-slate-400 mt-1">HTML5 Canvas Experiments</p>
+                        <div className="p-5 md:p-6 shrink-0 flex justify-between items-center">
+                            <div>
+                                <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">Visual Lab</h1>
+                                <p className="text-[10px] md:text-xs text-slate-400 mt-1">HTML5 Canvas Experiments</p>
+                            </div>
+                            {/* Mobile Close Button Inside Menu */}
+                            <button onClick={() => setShowUI(false)} className="sm:hidden p-2 text-slate-400 hover:text-white">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                            </button>
                         </div>
 
-                        <div className="flex-1 overflow-y-auto px-6 custom-scrollbar">
+                        <div className="flex-1 overflow-y-auto px-5 md:px-6 custom-scrollbar pb-6">
                             <nav className="space-y-2 pb-6">
-                                <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Effects</h3>
-                                <button onClick={() => setActiveEffect('flowfield')} className={`w-full flex items-center p-3 rounded-lg transition-colors ${activeEffect === 'flowfield' ? 'bg-blue-600' : 'hover:bg-slate-800'}`}>
-                                    <IconWind size={18} className="mr-3 shrink-0" />
-                                    <div className="text-left"><span className="block text-sm font-semibold">Flow Field</span></div>
-                                </button>
-                                <button onClick={() => setActiveEffect('cloth')} className={`w-full flex items-center p-3 rounded-lg transition-colors ${activeEffect === 'cloth' ? 'bg-teal-600' : 'hover:bg-slate-800'}`}>
-                                    <IconActivity size={18} className="mr-3 shrink-0" />
-                                    <div className="text-left"><span className="block text-sm font-semibold">Cloth Sim</span></div>
-                                </button>
-                                <button onClick={() => setActiveEffect('metaballs')} className={`w-full flex items-center p-3 rounded-lg transition-colors ${activeEffect === 'metaballs' ? 'bg-pink-600' : 'hover:bg-slate-800'}`}>
-                                    <IconRefreshCcw size={18} className="mr-3 shrink-0" />
-                                    <div className="text-left"><span className="block text-sm font-semibold">Metaballs</span></div>
-                                </button>
-                                <button onClick={() => setActiveEffect('particles')} className={`w-full flex items-center p-3 rounded-lg transition-colors ${activeEffect === 'particles' ? 'bg-purple-600' : 'hover:bg-slate-800'}`}>
-                                    <IconLayers size={18} className="mr-3 shrink-0" />
-                                    <div className="text-left"><span className="block text-sm font-semibold">Dispersion</span></div>
-                                </button>
-                                <button onClick={() => setActiveEffect('matrix')} className={`w-full flex items-center p-3 rounded-lg transition-colors ${activeEffect === 'matrix' ? 'bg-green-700' : 'hover:bg-slate-800'}`}>
-                                    <IconCode size={18} className="mr-3 shrink-0" />
-                                    <div className="text-left"><span className="block text-sm font-semibold">Matrix</span></div>
-                                </button>
-                                <button onClick={() => setActiveEffect('fireworks')} className={`w-full flex items-center p-3 rounded-lg transition-colors ${activeEffect === 'fireworks' ? 'bg-yellow-600' : 'hover:bg-slate-800'}`}>
-                                    <IconSparkles size={18} className="mr-3 shrink-0" />
-                                    <div className="text-left"><span className="block text-sm font-semibold">Fireworks</span></div>
-                                </button>
-                                <button onClick={() => setActiveEffect('tree')} className={`w-full flex items-center p-3 rounded-lg transition-colors ${activeEffect === 'tree' ? 'bg-orange-600' : 'hover:bg-slate-800'}`}>
-                                    <IconTreeDeciduous size={18} className="mr-3 shrink-0" />
-                                    <div className="text-left"><span className="block text-sm font-semibold">Fractal Tree</span></div>
-                                </button>
+                                <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Effects</h3>
+                                <div className="grid grid-cols-1 gap-2">
+                                    {[
+                                        { id: 'flowfield', icon: IconWind, label: 'Flow Field' },
+                                        { id: 'cloth', icon: IconActivity, label: 'Cloth Sim' },
+                                        { id: 'metaballs', icon: IconRefreshCcw, label: 'Metaballs' },
+                                        { id: 'particles', icon: IconLayers, label: 'Dispersion' },
+                                        { id: 'matrix', icon: IconCode, label: 'Matrix' },
+                                        { id: 'fireworks', icon: IconSparkles, label: 'Fireworks' },
+                                        { id: 'tree', icon: IconTreeDeciduous, label: 'Fractal Tree' }
+                                    ].map(effect => (
+                                        <button 
+                                            key={effect.id}
+                                            onClick={() => { setActiveEffect(effect.id); if(window.innerWidth < 640) setShowUI(false); }}
+                                            className={`w-full flex items-center p-3 rounded-lg transition-colors ${activeEffect === effect.id ? 'bg-blue-600 shadow-lg shadow-blue-500/20' : 'hover:bg-slate-800'}`}
+                                        >
+                                            <effect.icon size={18} className="mr-3 shrink-0" />
+                                            <div className="text-left"><span className="block text-sm font-semibold">{effect.label}</span></div>
+                                        </button>
+                                    ))}
+                                </div>
                             </nav>
 
                             {Object.keys(params).length > 0 && (
-                                <div className="mb-6 border-t border-slate-700 pt-6">
+                                <div className="mb-6 border-t border-slate-700 pt-5">
                                     <div className="flex items-center gap-2 mb-4 text-slate-300">
                                         <IconSliders size={14} />
-                                        <h3 className="text-xs font-bold uppercase tracking-wider">Adjustments</h3>
+                                        <h3 className="text-[10px] font-bold uppercase tracking-wider">Adjustments</h3>
                                     </div>
-                                    
-                                    <div className="space-y-5">
+                                    <div className="space-y-4">
                                         {Object.entries(params).map(([key, val]) => {
                                             const config = DEFAULT_PARAMS[activeEffect][key];
                                             if (!config) return null;
@@ -1031,13 +590,9 @@
                                                         <span className="font-mono text-blue-400">{Number(val).toFixed(2)}</span>
                                                     </div>
                                                     <input 
-                                                        type="range"
-                                                        min={config.min}
-                                                        max={config.max}
-                                                        step={(config.max - config.min) / 100}
-                                                        value={val}
-                                                        onChange={(e) => handleParamChange(key, parseFloat(e.target.value))}
-                                                        className="w-full h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500 hover:accent-blue-400"
+                                                        type="range" min={config.min} max={config.max} step={(config.max - config.min) / 100}
+                                                        value={val} onChange={(e) => handleParamChange(key, parseFloat(e.target.value))}
+                                                        className="w-full h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500 hover:accent-blue-400 touch-pan-x"
                                                     />
                                                 </div>
                                             );
@@ -1047,38 +602,26 @@
                             )}
                         </div>
 
-                        <div className="p-6 bg-slate-900 border-t border-slate-700 shrink-0 space-y-4">
-                            <button 
-                                onClick={toggleMute}
-                                className="flex items-center space-x-2 text-xs text-slate-400 hover:text-white transition-colors w-full"
-                            >
-                                {isMuted ? <IconVolumeX size={14} /> : <IconVolume2 size={14} />}
+                        <div className="p-5 md:p-6 bg-slate-900 border-t border-slate-700 shrink-0 space-y-4">
+                            <button onClick={toggleMute} className="flex items-center space-x-2 text-xs text-slate-400 hover:text-white transition-colors w-full p-2 rounded hover:bg-slate-800">
+                                {isMuted ? <IconVolumeX size={16} /> : <IconVolume2 size={16} />}
                                 <span>{isMuted ? "Sound Off" : "Sound On"}</span>
                             </button>
 
                             <div className="space-y-1">
                                 <div className="flex justify-between items-center text-xs text-slate-400">
-                                    <span className="flex items-center gap-1"><IconSettings size={10} /> Target FPS</span>
+                                    <span className="flex items-center gap-1"><IconSettings size={12} /> Target FPS</span>
                                     <span className="font-mono text-blue-400">{targetFps}</span>
                                 </div>
                                 <input 
-                                    type="range" 
-                                    min="15" 
-                                    max="120" 
-                                    step="15"
-                                    value={targetFps} 
+                                    type="range" min="15" max="120" step="15" value={targetFps} 
                                     onChange={(e) => setTargetFps(Number(e.target.value))}
                                     className="w-full h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
                                 />
                             </div>
-
-                            <div className="text-xs text-slate-500 pt-1 border-t border-slate-800">
-                                <div className="flex justify-between">
-                                    <span>Actual FPS:</span>
-                                    <span className={`font-mono ${stats.fps < targetFps - 5 ? 'text-red-400' : 'text-green-400'}`}>
-                                        {stats.fps}
-                                    </span>
-                                </div>
+                            <div className="text-[10px] text-slate-500 pt-1 flex justify-between">
+                                <span>FPS:</span>
+                                <span className={`font-mono ${stats.fps < targetFps - 5 ? 'text-red-400' : 'text-green-400'}`}>{stats.fps}</span>
                             </div>
                         </div>
                     </div>
@@ -1086,18 +629,11 @@
                     {hasStarted && (
                         <button 
                             onClick={() => setShowUI(!showUI)}
-                            className="absolute top-4 left-4 z-20 bg-slate-800/50 p-2 rounded-md hover:bg-slate-700 text-white backdrop-blur-sm transition-opacity"
+                            className="absolute top-4 left-4 z-30 bg-slate-800/80 p-2.5 rounded-lg hover:bg-slate-700 text-white backdrop-blur-sm transition-opacity shadow-lg"
                         >
                             {showUI ? 'Close' : 'Menu'}
                         </button>
                     )}
-
-                    {!showUI && hasStarted && (
-                        <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 bg-black/30 backdrop-blur px-4 py-2 rounded-full text-sm pointer-events-none text-slate-300">
-                            {activeEffect === 'tree' ? 'Move mouse to grow' : 'Click/Touch to interact'}
-                        </div>
-                    )}
-
                 </div>
             );
         };
